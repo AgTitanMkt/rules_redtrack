@@ -1,88 +1,61 @@
 {% extends "base.html" %}
 {% block title %}Rules{% endblock %}
-{% block subtitle %}Multi-condition rules per member — data from RedTrack, actions on the platform{% endblock %}
+{% block subtitle %}Select ad accounts → define conditions → auto-execute on the platform{% endblock %}
 
 {% block content %}
 <div class="panel rule-builder-panel">
   <div class="panel-head"><h3 id="form-title">New Rule</h3></div>
-  <div class="form-body" id="rule-form">
+  <div class="form-body">
     <div class="form-row">
-      <div class="field">
-        <label>Rule Name</label>
-        <input type="text" id="f-name" placeholder="e.g. Pause high-spend zero-purchase">
-      </div>
-      <div class="field field-sm">
-        <label>Team Member</label>
-        <select id="f-member">
-          {% for m in members %}
-          <option value="{{ m.id }}">{{ m.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      <div class="field"><label>Rule Name</label>
+        <input type="text" id="f-name" placeholder="e.g. Pause zero-purchase high-spend"></div>
     </div>
-    <div class="form-row">
-      <div class="field field-sm">
-        <label>Traffic Channel</label>
-        <select id="f-channel" onchange="updateRuleObjects()">
-          {% for key, ch in traffic_channels.items() %}
-          <option value="{{ key }}">{{ ch.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field field-sm">
-        <label>Rule Object</label>
-        <select id="f-object"></select>
-      </div>
-      <div class="field">
-        <label>Campaign Name Contains <span class="hint">(empty = all)</span></label>
-        <input type="text" id="f-filter" placeholder="e.g. [Renato]">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="field field-sm">
-        <label>Schedule</label>
-        <select id="f-schedule">
-          {% for s in schedule_frequencies %}
-          <option value="{{ s.value }}">{{ s.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Notify Email</label>
-        <input type="email" id="f-email" placeholder="user@example.com">
-      </div>
-      <div class="field">
-        <label>Webhook URL</label>
-        <input type="url" id="f-webhook" placeholder="https://hooks.slack.com/...">
-      </div>
-      <div class="field field-xs">
-        <label class="cb-label"><input type="checkbox" id="f-active" checked> Active</label>
+
+    <!-- Account selector (multi-select checkboxes) -->
+    <div class="field">
+      <label>Apply to Ad Accounts <span class="hint">(select one or more Traffic Channels)</span></label>
+      <div class="account-picker" id="account-picker">
+        {% for a in accounts %}
+        <label class="acc-chip">
+          <input type="checkbox" value="{{ a.id }}" class="acc-cb"> 
+          <span class="channel-tag tag-{{ a.platform }}">{{ a.platform|upper }}</span>
+          {{ a.name }} <span class="hint">({{ a.owner }})</span>
+        </label>
+        {% endfor %}
       </div>
     </div>
 
+    <div class="form-row">
+      <div class="field field-sm"><label>Rule Object</label>
+        <select id="f-object">{% for r in rule_objects %}<option value="{{ r.value }}">{{ r.label }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Campaign Name Contains <span class="hint">(empty = all)</span></label>
+        <input type="text" id="f-filter" placeholder="e.g. BrainBoost"></div>
+      <div class="field field-sm"><label>Schedule</label>
+        <select id="f-schedule">{% for s in schedule_frequencies %}<option value="{{ s.value }}">{{ s.label }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Notify Email</label><input type="email" id="f-email"></div>
+      <div class="field"><label>Webhook URL</label><input type="url" id="f-webhook"></div>
+      <div class="field field-xs"><label class="cb-label"><input type="checkbox" id="f-active" checked> Active</label></div>
+    </div>
+
     <div class="actions-builder">
-      <div class="section-head">
-        <h4>Actions & Conditions</h4>
-        <button class="btn btn-outline btn-sm" type="button" onclick="addAction()">+ Action</button>
-      </div>
-      <p class="section-hint">Up to 5 actions, each with up to 5 conditions. All conditions must match (AND logic).</p>
+      <div class="section-head"><h4>Actions & Conditions</h4>
+        <button class="btn btn-outline btn-sm" type="button" onclick="addAction()">+ Action</button></div>
+      <p class="section-hint">Up to 5 actions, each with up to 5 conditions (AND logic).</p>
       <div id="actions-container"></div>
     </div>
 
     <div class="form-actions">
-      <button class="btn btn-primary" type="button" onclick="saveRule()">
-        <span id="save-btn-text">Create Rule</span>
-      </button>
-      <button class="btn btn-ghost" type="button" onclick="resetForm()" id="cancel-btn" style="display:none">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRule()"><span id="save-btn-text">Create Rule</span></button>
+      <button class="btn btn-ghost" onclick="resetForm()" id="cancel-btn" style="display:none">Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- Rules List -->
 <div class="panel">
-  <div class="panel-head">
-    <h3>All Rules</h3>
-    <span class="badge badge-muted">{{ rules|length }}</span>
-  </div>
+  <div class="panel-head"><h3>All Rules</h3><span class="badge badge-muted">{{ rules|length }}</span></div>
   {% if rules %}
   <div class="rules-list">
     {% for rule in rules %}
@@ -91,10 +64,9 @@
         <div class="rule-title-row">
           <span class="badge {{ 'badge-ok' if rule.active else 'badge-muted' }}">{{ 'ON' if rule.active else 'OFF' }}</span>
           <h4>{{ rule.name }}</h4>
-          <span class="member-tag">{{ rule.member_name }}</span>
         </div>
         <div class="rule-meta">
-          <span class="channel-tag tag-{{ rule.traffic_channel }}">{{ rule.channel_label }}</span>
+          {% for an in rule.ad_account_names %}<span class="channel-tag tag-sm">{{ an }}</span>{% endfor %}
           <span class="meta-item">{{ rule.object_label }}</span>
           {% if rule.campaign_filter %}<span class="meta-item">Filter: <strong>{{ rule.campaign_filter }}</strong></span>{% endif %}
           <span class="meta-item">Every <strong>{{ rule.schedule_minutes }}min</strong></span>
@@ -104,167 +76,107 @@
         {% for a in rule.actions %}
         <div class="action-block">
           <span class="action-label">{{ a.describe_action() }}</span>
-          <div class="conditions-list">
-            {% for c in a.conditions %}<span class="condition-pill">{{ c.describe() }}</span>{% endfor %}
-          </div>
+          <div class="conditions-list">{% for c in a.conditions %}<span class="condition-pill">{{ c.describe() }}</span>{% endfor %}</div>
         </div>
         {% endfor %}
       </div>
       <div class="rule-footer">
         {% if rule.notify_email %}<span class="meta-item">📧 {{ rule.notify_email }}</span>{% endif %}
-        {% if rule.notify_webhook %}<span class="meta-item">🔗 Webhook</span>{% endif %}
         <div class="rule-btns">
           <button class="btn btn-outline btn-sm" onclick="editRule({{ rule.id }})">Edit</button>
           <form method="post" action="/rules/{{ rule.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline">
-            <button class="btn btn-danger-outline btn-sm" type="submit">Delete</button>
-          </form>
+            <button class="btn btn-danger-outline btn-sm" type="submit">Delete</button></form>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-state"><p>No rules yet. Add team members first, then create rules.</p></div>
-  {% endif %}
+  {% else %}<div class="empty-state"><p>No rules yet.</p></div>{% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const CHANNELS = {{ traffic_channels|tojson }};
-const METRICS = {{ metrics|tojson }};
-const OPERATORS = {{ operators|tojson }};
-const ACTIONS_LIST = {{ actions|tojson }};
-const TIME_RANGES = {{ time_ranges|tojson }};
-let editingRuleId = null;
-const editingData = {{ editing_rule_json|safe }};
+const METRICS={{ metrics|tojson }}, OPERATORS={{ operators|tojson }},
+      ACTIONS_LIST={{ actions|tojson }}, TIME_RANGES={{ time_ranges|tojson }};
+let editingRuleId=null, actionCount=0, condCount=0;
+const editingData={{ editing_rule_json|safe }};
 
 document.addEventListener('DOMContentLoaded', () => {
-  updateRuleObjects();
-  if (editingData) loadEditingRule(editingData);
-  else addAction();
+  if (editingData) loadEdit(editingData); else addAction();
 });
 
-function updateRuleObjects() {
-  const ch = document.getElementById('f-channel').value;
-  const sel = document.getElementById('f-object');
-  sel.innerHTML = (CHANNELS[ch]?.rule_objects || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-}
-
-let actionCount = 0, condCount = 0;
-
 function addAction(data) {
-  if (actionCount >= 5) return alert('Max 5 actions');
-  actionCount++;
-  const idx = actionCount;
-  const c = document.getElementById('actions-container');
-  const div = document.createElement('div');
-  div.className = 'action-card'; div.id = `action-${idx}`;
-  div.innerHTML = `
-    <div class="action-header">
-      <div class="action-header-left">
-        <span class="action-number">${idx}</span>
-        <select class="select-action" id="act-type-${idx}" onchange="onActChange(${idx})">
-          ${ACTIONS_LIST.map(a=>`<option value="${a.value}" ${data?.action===a.value?'selected':''}>${a.label}</option>`).join('')}
-        </select>
-        <input type="number" class="input-sm scale-input" id="act-scale-${idx}" placeholder="%" value="${data?.scale_value||''}" style="display:${data?.action?.includes('scale')?'block':'none'}">
-      </div>
-      <button class="btn-icon btn-remove" onclick="removeAction(${idx})">✕</button>
-    </div>
-    <div class="conditions-container" id="conds-${idx}"></div>
-    <button class="btn btn-outline btn-xs" type="button" onclick="addCondition(${idx})">+ Condition</button>`;
-  c.appendChild(div);
-  if (data?.conditions) data.conditions.forEach(cd => addCondition(idx, cd));
-  else addCondition(idx);
+  if (actionCount>=5) return; actionCount++;
+  const i=actionCount, c=document.getElementById('actions-container'), d=document.createElement('div');
+  d.className='action-card'; d.id=`action-${i}`;
+  d.innerHTML=`<div class="action-header"><div class="action-header-left">
+    <span class="action-number">${i}</span>
+    <select class="select-action" id="act-type-${i}">${ACTIONS_LIST.map(a=>`<option value="${a.value}" ${data?.action===a.value?'selected':''}>${a.label}</option>`).join('')}</select>
+    </div><button class="btn-icon btn-remove" onclick="this.closest('.action-card').remove()">✕</button></div>
+    <div class="conditions-container" id="conds-${i}"></div>
+    <button class="btn btn-outline btn-xs" onclick="addCond(${i})">+ Condition</button>`;
+  c.appendChild(d);
+  if (data?.conditions) data.conditions.forEach(cd=>addCond(i,cd)); else addCond(i);
 }
 
-function removeAction(i) { document.getElementById(`action-${i}`)?.remove(); }
-function onActChange(i) {
-  const t = document.getElementById(`act-type-${i}`).value;
-  document.getElementById(`act-scale-${i}`).style.display = t.includes('scale') ? 'block' : 'none';
-}
-
-function addCondition(ai, data) {
-  const c = document.getElementById(`conds-${ai}`);
-  if (c.children.length >= 5) return;
-  condCount++;
-  const ci = condCount;
-  const div = document.createElement('div');
-  div.className = 'condition-row'; div.id = `cond-${ci}`;
-  div.innerHTML = `
-    <select class="cond-metric" id="cm-${ci}">${METRICS.map(m=>`<option value="${m.value}" ${data?.metric===m.value?'selected':''}>${m.label}</option>`).join('')}</select>
+function addCond(ai, data) {
+  const c=document.getElementById(`conds-${ai}`);
+  if (c.children.length>=5) return; condCount++;
+  const ci=condCount, d=document.createElement('div');
+  d.className='condition-row'; d.id=`cond-${ci}`;
+  d.innerHTML=`<select class="cond-metric" id="cm-${ci}">${METRICS.map(m=>`<option value="${m.value}" ${data?.metric===m.value?'selected':''}>${m.label}</option>`).join('')}</select>
     <select class="cond-op" id="co-${ci}">${OPERATORS.map(o=>`<option value="${o.value}" ${data?.operator===o.value?'selected':''}>${o.symbol} ${o.label}</option>`).join('')}</select>
-    <input type="number" step="0.01" class="cond-val" id="cv-${ci}" placeholder="Value" value="${data?.value??''}">
+    <input type="number" step="0.01" class="cond-val" id="cv-${ci}" value="${data?.value??''}">
     <select class="cond-time" id="ct-${ci}">${TIME_RANGES.map(t=>`<option value="${t.value}" ${data?.time_range===t.value?'selected':''}>${t.label}</option>`).join('')}</select>
     <button class="btn-icon btn-remove-sm" onclick="this.parentElement.remove()">✕</button>`;
-  c.appendChild(div);
+  c.appendChild(d);
 }
 
 async function saveRule() {
-  const name = document.getElementById('f-name').value.trim();
+  const name=document.getElementById('f-name').value.trim();
   if (!name) return alert('Name required');
-  const member_id = document.getElementById('f-member').value;
-  if (!member_id) return alert('Select a team member');
-
-  const actions = [];
-  document.querySelectorAll('.action-card').forEach(card => {
-    const i = card.id.split('-')[1];
-    const conditions = [];
-    card.querySelectorAll('.condition-row').forEach(row => {
-      const ci = row.id.split('-')[1];
-      const v = document.getElementById(`cv-${ci}`).value;
-      if (v !== '') conditions.push({
-        metric: document.getElementById(`cm-${ci}`).value,
-        operator: document.getElementById(`co-${ci}`).value,
-        value: parseFloat(v),
-        time_range: document.getElementById(`ct-${ci}`).value,
-      });
+  const accIds=[...document.querySelectorAll('.acc-cb:checked')].map(c=>parseInt(c.value));
+  if (!accIds.length) return alert('Select at least one ad account');
+  const actions=[];
+  document.querySelectorAll('.action-card').forEach(card=>{
+    const i=card.id.split('-')[1], conds=[];
+    card.querySelectorAll('.condition-row').forEach(row=>{
+      const ci=row.id.split('-')[1], v=document.getElementById(`cv-${ci}`).value;
+      if (v!=='') conds.push({metric:document.getElementById(`cm-${ci}`).value,
+        operator:document.getElementById(`co-${ci}`).value, value:parseFloat(v),
+        time_range:document.getElementById(`ct-${ci}`).value});
     });
-    if (conditions.length) {
-      const act = document.getElementById(`act-type-${i}`).value;
-      const sv = document.getElementById(`act-scale-${i}`).value;
-      actions.push({ action: act, scale_value: act.includes('scale') && sv ? parseFloat(sv) : null, conditions });
-    }
+    if (conds.length) actions.push({action:document.getElementById(`act-type-${i}`).value, conditions:conds});
   });
-  if (!actions.length) return alert('Add at least one action with conditions');
-
-  const payload = {
-    id: editingRuleId, name, member_id: parseInt(member_id),
-    traffic_channel: document.getElementById('f-channel').value,
-    rule_object: document.getElementById('f-object').value,
-    campaign_filter: document.getElementById('f-filter').value,
-    schedule_minutes: parseInt(document.getElementById('f-schedule').value),
-    notify_email: document.getElementById('f-email').value,
-    notify_webhook: document.getElementById('f-webhook').value,
-    active: document.getElementById('f-active').checked, actions,
-  };
-
-  const resp = await fetch('/api/rules/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  const data = await resp.json();
-  if (data.ok) window.location.href = '/rules';
-  else alert('Error saving rule');
+  if (!actions.length) return alert('Add conditions');
+  const payload={id:editingRuleId, name, ad_account_ids:accIds,
+    rule_object:document.getElementById('f-object').value,
+    campaign_filter:document.getElementById('f-filter').value,
+    schedule_minutes:parseInt(document.getElementById('f-schedule').value),
+    notify_email:document.getElementById('f-email').value,
+    notify_webhook:document.getElementById('f-webhook').value,
+    active:document.getElementById('f-active').checked, actions};
+  const r=await fetch('/api/rules/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if ((await r.json()).ok) window.location.href='/rules';
 }
 
-function editRule(id) { window.location.href = `/rules/${id}/edit`; }
-
-function loadEditingRule(d) {
-  editingRuleId = d.id;
-  document.getElementById('form-title').textContent = 'Edit Rule';
-  document.getElementById('save-btn-text').textContent = 'Save Changes';
-  document.getElementById('cancel-btn').style.display = 'inline-flex';
-  document.getElementById('f-name').value = d.name;
-  document.getElementById('f-member').value = d.member_id;
-  document.getElementById('f-channel').value = d.traffic_channel;
-  updateRuleObjects();
-  document.getElementById('f-object').value = d.rule_object;
-  document.getElementById('f-filter').value = d.campaign_filter || '';
-  document.getElementById('f-schedule').value = d.schedule_minutes;
-  document.getElementById('f-email').value = d.notify_email || '';
-  document.getElementById('f-webhook').value = d.notify_webhook || '';
-  document.getElementById('f-active').checked = d.active;
-  d.actions.forEach(a => addAction(a));
+function editRule(id){window.location.href=`/rules/${id}/edit`}
+function loadEdit(d){
+  editingRuleId=d.id;
+  document.getElementById('form-title').textContent='Edit Rule';
+  document.getElementById('save-btn-text').textContent='Save Changes';
+  document.getElementById('cancel-btn').style.display='inline-flex';
+  document.getElementById('f-name').value=d.name;
+  document.getElementById('f-object').value=d.rule_object;
+  document.getElementById('f-filter').value=d.campaign_filter||'';
+  document.getElementById('f-schedule').value=d.schedule_minutes;
+  document.getElementById('f-email').value=d.notify_email||'';
+  document.getElementById('f-webhook').value=d.notify_webhook||'';
+  document.getElementById('f-active').checked=d.active;
+  document.querySelectorAll('.acc-cb').forEach(cb=>{cb.checked=d.ad_account_ids.includes(parseInt(cb.value))});
+  d.actions.forEach(a=>addAction(a));
 }
-
-function resetForm() { window.location.href = '/rules'; }
+function resetForm(){window.location.href='/rules'}
 </script>
 {% endblock %}

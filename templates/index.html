@@ -1,142 +1,58 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
-{% block subtitle %}Data from RedTrack → Rules evaluate → Actions execute on Meta/Google{% endblock %}
+{% block subtitle %}RedTrack data → rule evaluation → platform actions{% endblock %}
 
 {% block content %}
 <div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon icon-blue">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    </div>
-    <div class="stat-body">
-      <span class="stat-value">{{ total_objects }}</span>
-      <span class="stat-label">Objects Monitored</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-amber">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    </div>
-    <div class="stat-body">
-      <span class="stat-value">{{ matched_count }}</span>
-      <span class="stat-label">Rules Matched</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-red">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-    </div>
-    <div class="stat-body">
-      <span class="stat-value">{{ acted_count }}</span>
-      <span class="stat-label">Actions Executed</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-green">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-    </div>
-    <div class="stat-body">
-      <span class="stat-value">{{ rules_count }}</span>
-      <span class="stat-label">Active Rules</span>
-    </div>
-  </div>
+  <div class="stat-card"><div class="stat-icon icon-blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-body"><span class="stat-value">{{ total_objects }}</span><span class="stat-label">Monitored</span></div></div>
+  <div class="stat-card"><div class="stat-icon icon-amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="stat-body"><span class="stat-value">{{ matched_count }}</span><span class="stat-label">Matched</span></div></div>
+  <div class="stat-card"><div class="stat-icon icon-red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div><div class="stat-body"><span class="stat-value">{{ acted_count }}</span><span class="stat-label">Acted</span></div></div>
+  <div class="stat-card"><div class="stat-icon icon-green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="stat-body"><span class="stat-value">{{ rules_count }}</span><span class="stat-label">Rules</span></div></div>
 </div>
 
 <div class="panel controls-panel">
   <div class="controls-row">
     <div class="control-group">
-      <button class="btn btn-primary" onclick="runMonitoring()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Run Now
-      </button>
+      <button class="btn btn-primary" onclick="runMonitoring()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Now</button>
       <div id="monitor-feedback" class="feedback hidden"></div>
     </div>
-    <div class="control-group scheduler-controls">
+    <div class="control-group">
       <span class="control-label">Scheduler:</span>
-      <select id="sched-interval" class="select-sm">
-        <option value="5">5 min</option>
-        <option value="15">15 min</option>
-        <option value="30">30 min</option>
-        <option value="60">1 hour</option>
-      </select>
+      <select id="sched-interval" class="select-sm"><option value="5">5m</option><option value="15">15m</option><option value="30">30m</option><option value="60">1h</option></select>
       <button class="btn btn-outline" id="sched-toggle-btn" onclick="toggleScheduler()">Start</button>
     </div>
   </div>
 </div>
 
 <div class="panel">
-  <div class="panel-head">
-    <h3>Monitoring Results</h3>
-    <span class="badge badge-muted">{{ results|length }} rows</span>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Member</th>
-          <th>Channel</th>
-          <th>Campaign / Object</th>
-          <th>Cost</th>
-          <th>Revenue</th>
-          <th>ROI</th>
-          <th>Rule</th>
-          <th>Action</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in results %}
-        <tr>
-          <td><strong>{{ r["member_name"] }}</strong></td>
-          <td><span class="channel-tag tag-{{ r['traffic_channel'] }}">{{ r["traffic_channel"]|upper }}</span></td>
-          <td class="cell-name">{{ r["object_name"] }}</td>
-          <td class="cell-num">${{ '%.2f'|format(r["cost"]) }}</td>
-          <td class="cell-num">${{ '%.2f'|format(r["revenue"]) }}</td>
-          <td class="cell-num {% if r['roi'] > 0 %}text-green{% elif r['roi'] < 0 %}text-red{% endif %}">{{ '%.1f'|format(r["roi"]) }}%</td>
-          <td>{{ r["matched_rule"] or '—' }}</td>
-          <td>{{ r["matched_action"] or '—' }}</td>
-          <td>
-            <span class="badge
-              {% if r['pause_status'] == 'PAUSED' %}badge-red
-              {% elif r['pause_status'] == 'DRY_RUN' %}badge-amber
-              {% elif r['pause_status'] == 'ERROR' %}badge-red
-              {% elif r['pause_status'] == 'NOTIFIED' %}badge-blue
-              {% elif r['pause_status'] in ('SCALED_UP','SCALED_DOWN') %}badge-green
-              {% else %}badge-ok{% endif %}">{{ r["pause_status"] }}</span>
-          </td>
-          <td>
-            <button class="btn-icon" title="Pause"
-              onclick="pauseObject('{{ r['object_id'] }}','{{ r['object_name'] }}','{{ r['object_type'] }}','{{ r['traffic_channel'] }}',{{ r['cost'] }},'{{ r['platform_id'] }}')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            </button>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="10" class="empty-row">No results yet. Add team members, create rules, then run monitoring.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <div class="panel-head"><h3>Results</h3><span class="badge badge-muted">{{ results|length }}</span></div>
+  <div class="table-wrap"><table><thead><tr>
+    <th>Owner</th><th>Account</th><th>Campaign</th><th>Cost</th><th>Revenue</th><th>ROI</th><th>Rule</th><th>Action</th><th>Status</th><th></th>
+  </tr></thead><tbody>
+    {% for r in results %}<tr>
+      <td><strong>{{ r["owner"] }}</strong></td>
+      <td><span class="channel-tag tag-{{ r['platform'] }}">{{ r["ad_account_name"][:25] }}</span></td>
+      <td class="cell-name">{{ r["object_name"] }}</td>
+      <td class="cell-num">${{ '%.2f'|format(r["cost"]) }}</td>
+      <td class="cell-num">${{ '%.2f'|format(r["revenue"]) }}</td>
+      <td class="cell-num {% if r['roi']>0 %}text-green{% elif r['roi']<0 %}text-red{% endif %}">{{ '%.1f'|format(r["roi"]) }}%</td>
+      <td>{{ r["matched_rule"] or '—' }}</td>
+      <td>{{ r["matched_action"] or '—' }}</td>
+      <td><span class="badge {% if r['pause_status']=='PAUSED' %}badge-red{% elif r['pause_status']=='DRY_RUN' %}badge-amber{% elif r['pause_status']=='ERROR' %}badge-red{% elif r['pause_status']=='NOTIFIED' %}badge-blue{% else %}badge-ok{% endif %}">{{ r["pause_status"] }}</span></td>
+      <td><button class="btn-icon" onclick="pauseObject('{{ r['object_id'] }}','{{ r['object_name'] }}')">⏸</button></td>
+    </tr>{% else %}<tr><td colspan="10" class="empty-row">No results. Add accounts, create rules, run monitoring.</td></tr>{% endfor %}
+  </tbody></table></div>
 </div>
 
 <div class="panel">
-  <div class="panel-head">
-    <h3>Recent Logs</h3>
-    <a class="btn btn-outline btn-sm" href="/logs">View All</a>
-  </div>
+  <div class="panel-head"><h3>Recent Logs</h3><a class="btn btn-outline btn-sm" href="/logs">All</a></div>
   <div class="log-list">
-    {% for log in logs %}
-    <div class="log-entry">
-      <span class="log-level level-{{ log['level']|lower }}">{{ log["level"] }}</span>
-      <span class="log-msg">{{ log["message"] }}</span>
-      {% if log["member_name"] %}<span class="log-detail">{{ log["member_name"] }}</span>{% endif %}
-      {% if log["object_name"] %}<span class="log-detail">{{ log["object_name"] }}</span>{% endif %}
-      <span class="log-time">{{ log["created_at"] }}</span>
-    </div>
-    {% else %}
-    <div class="empty-row">No logs yet.</div>
-    {% endfor %}
+    {% for l in logs %}<div class="log-entry">
+      <span class="log-level level-{{ l['level']|lower }}">{{ l["level"] }}</span>
+      <span class="log-msg">{{ l["message"] }}</span>
+      {% if l["ad_account_name"] %}<span class="log-detail">{{ l["ad_account_name"] }}</span>{% endif %}
+      <span class="log-time">{{ l["created_at"] }}</span>
+    </div>{% else %}<div class="empty-row">No logs.</div>{% endfor %}
   </div>
 </div>
 {% endblock %}

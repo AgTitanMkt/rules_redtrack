@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Ad Accounts{% endblock %}
+{% block subtitle %}Each account = one Traffic Channel in RedTrack. Add platform credentials to enable auto-pause.{% endblock %}
+
+{% block content %}
+<!-- Global RT Key -->
+<div class="panel">
+  <div class="panel-head"><h3><span class="channel-tag tag-rt">RT</span> &nbsp;RedTrack API Key (Global)</h3></div>
+  <div class="form-body">
+    <p class="section-hint" style="margin-bottom:10px">Single key for the whole team — pulls all campaign data.</p>
+    <div class="form-row">
+      <div class="field"><label>API Key</label><input type="password" id="rt-api-key" value="{{ redtrack_api_key }}"></div>
+      <div style="padding-top:20px"><button class="btn btn-primary" onclick="saveRTKey()">Save</button></div>
+    </div>
+    <div id="rt-fb" class="feedback hidden" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Flow -->
+<div class="panel explainer-panel">
+  <div class="flow-steps">
+    <div class="flow-step"><span class="flow-num">1</span><div><strong>Add Account</strong><p>Like RT Traffic Channel</p></div></div>
+    <svg class="flow-arrow" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <div class="flow-step"><span class="flow-num">2</span><div><strong>Platform Tokens</strong><p>FB token, Google creds</p></div></div>
+    <svg class="flow-arrow" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <div class="flow-step"><span class="flow-num">3</span><div><strong>Create Rules</strong><p>Select accounts + conditions</p></div></div>
+    <svg class="flow-arrow" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <div class="flow-step"><span class="flow-num">4</span><div><strong>Auto Pause</strong><p>RT data → pause on platform</p></div></div>
+  </div>
+</div>
+
+<!-- Account Form -->
+<div class="panel">
+  <div class="panel-head"><h3 id="acc-title">{{ 'Edit Account' if editing else 'Add Ad Account' }}</h3></div>
+  <div class="form-body">
+    <div class="form-row">
+      <div class="field"><label>Account Name <span class="hint">(same as RT Traffic Channel)</span></label>
+        <input type="text" id="a-name" placeholder='e.g. ED [FBR-RENATO]' value="{{ editing.name if editing else '' }}"></div>
+      <div class="field field-sm"><label>Platform</label>
+        <select id="a-platform" onchange="togglePlatformFields()">
+          {% for k,v in platform_types.items() %}<option value="{{ k }}" {{ 'selected' if editing and editing.platform==k }}>{{ v.label }}</option>{% endfor %}
+        </select></div>
+      <div class="field field-sm"><label>Owner (Media Buyer)</label>
+        <input type="text" id="a-owner" placeholder="e.g. Renato" value="{{ editing.owner if editing else '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field field-sm"><label>RT Campaign ID <span class="hint">(# column)</span></label>
+        <input type="text" id="a-rt_campaign_id" placeholder="2955" value="{{ editing.rt_campaign_id if editing else '' }}"></div>
+      <div class="field field-xs"><label class="cb-label"><input type="checkbox" id="a-active" {{ 'checked' if not editing or editing.active }}> Active</label></div>
+    </div>
+
+    <!-- Facebook fields -->
+    <div id="fb-fields" class="token-section">
+      <h4 class="token-section-title"><span class="channel-tag tag-facebook">FB</span> Meta API + CAPI</h4>
+      <div class="form-row">
+        <div class="field"><label>Access Token</label><input type="password" id="a-fb_access_token" value="{{ editing.fb_access_token if editing else '' }}"></div>
+        <div class="field field-sm"><label>Ad Account ID</label><input type="text" id="a-fb_ad_account_id" placeholder="act_123456789" value="{{ editing.fb_ad_account_id if editing else '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field field-sm"><label>Pixel ID <span class="hint">(optional, for CAPI)</span></label><input type="text" id="a-fb_pixel_id" placeholder="123456789" value="{{ editing.fb_pixel_id if editing else '' }}"></div>
+      </div>
+    </div>
+
+    <!-- Google fields -->
+    <div id="gg-fields" class="token-section" style="display:none">
+      <h4 class="token-section-title"><span class="channel-tag tag-google">GG</span> Google Ads API</h4>
+      <div class="form-row">
+        <div class="field field-sm"><label>Google Ads Account ID</label><input type="text" id="a-google_ads_account_id" placeholder="820-096-1286" value="{{ editing.google_ads_account_id if editing else '' }}"></div>
+        <div class="field field-sm"><label>MCC ID <span class="hint">(optional)</span></label><input type="text" id="a-google_mcc_id" value="{{ editing.google_mcc_id if editing else '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Developer Token</label><input type="password" id="a-google_developer_token" value="{{ editing.google_developer_token if editing else '' }}"></div>
+        <div class="field"><label>OAuth Client ID</label><input type="text" id="a-google_client_id" value="{{ editing.google_client_id if editing else '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>OAuth Client Secret</label><input type="password" id="a-google_client_secret" value="{{ editing.google_client_secret if editing else '' }}"></div>
+        <div class="field"><label>Refresh Token</label><input type="password" id="a-google_refresh_token" value="{{ editing.google_refresh_token if editing else '' }}"></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveAccount()">{{ 'Save Changes' if editing else 'Add Account' }}</button>
+      {% if editing %}<a class="btn btn-ghost" href="/accounts">Cancel</a>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Accounts List -->
+<div class="panel">
+  <div class="panel-head"><h3>All Ad Accounts</h3><span class="badge badge-muted">{{ accounts|length }}</span></div>
+  {% if accounts %}
+  <div class="table-wrap"><table><thead><tr>
+    <th>Name</th><th>Platform</th><th>Owner</th><th>RT #</th><th>API</th><th>Status</th><th></th>
+  </tr></thead><tbody>
+    {% for a in accounts %}<tr>
+      <td class="cell-name"><strong>{{ a.name }}</strong></td>
+      <td><span class="channel-tag tag-{{ a.platform }}">{{ a.platform|upper }}</span></td>
+      <td>{{ a.owner }}</td>
+      <td class="cell-mono">{{ a.rt_campaign_id or '—' }}</td>
+      <td>{% if a.has_api() %}<span class="badge badge-ok">Connected</span>{% else %}<span class="badge badge-muted">—</span>{% endif %}</td>
+      <td><span class="badge {{ 'badge-ok' if a.active else 'badge-muted' }}">{{ 'ON' if a.active else 'OFF' }}</span></td>
+      <td class="cell-actions">
+        <a class="btn btn-outline btn-sm" href="/accounts/{{ a.id }}/edit">Edit</a>
+        <form method="post" action="/accounts/{{ a.id }}/delete" onsubmit="return confirm('Remove?')" style="display:inline">
+          <button class="btn btn-danger-outline btn-sm" type="submit">Del</button></form>
+      </td>
+    </tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<div class="empty-state"><p>No accounts yet. Add your first Traffic Channel above.</p></div>{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const editId = {{ editing.id if editing else 'null' }};
+
+document.addEventListener('DOMContentLoaded', togglePlatformFields);
+
+function togglePlatformFields() {
+  const p = document.getElementById('a-platform').value;
+  document.getElementById('fb-fields').style.display = (p === 'facebook') ? 'block' : 'none';
+  document.getElementById('gg-fields').style.display = (p === 'google') ? 'block' : 'none';
+}
+
+async function saveRTKey() {
+  const fb = document.getElementById('rt-fb');
+  const r = await fetch('/api/settings/redtrack-key', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({api_key: document.getElementById('rt-api-key').value})});
+  fb.className = 'feedback ok'; fb.textContent = 'Saved!';
+}
+
+async function saveAccount() {
+  const name = document.getElementById('a-name').value.trim();
+  if (!name) return alert('Name is required');
+  const fields = ['platform','owner','rt_campaign_id','fb_access_token','fb_ad_account_id','fb_pixel_id',
+    'google_ads_account_id','google_mcc_id','google_developer_token','google_client_id','google_client_secret','google_refresh_token'];
+  const payload = {name, active: document.getElementById('a-active').checked};
+  if (editId) payload.id = editId;
+  fields.forEach(f => { payload[f] = document.getElementById('a-'+f).value; });
+  const r = await fetch('/api/accounts/save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) window.location.href = '/accounts';
+  else alert('Error');
+}
+</script>
+{% endblock %}

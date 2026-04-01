@@ -27,119 +27,113 @@ def db_cursor(commit=False):
 
 def init_db():
     with db_cursor(commit=True) as cur:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY, value TEXT NOT NULL
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS team_members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL DEFAULT '',
-                fb_access_token TEXT NOT NULL DEFAULT '',
-                fb_ad_account_id TEXT NOT NULL DEFAULT '',
-                google_developer_token TEXT NOT NULL DEFAULT '',
-                google_client_id TEXT NOT NULL DEFAULT '',
-                google_client_secret TEXT NOT NULL DEFAULT '',
-                google_refresh_token TEXT NOT NULL DEFAULT '',
-                google_customer_id TEXT NOT NULL DEFAULT '',
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS ad_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            platform TEXT NOT NULL DEFAULT 'facebook',
+            owner TEXT NOT NULL DEFAULT '',
+            rt_campaign_id TEXT NOT NULL DEFAULT '',
+            fb_access_token TEXT NOT NULL DEFAULT '',
+            fb_ad_account_id TEXT NOT NULL DEFAULT '',
+            fb_pixel_id TEXT NOT NULL DEFAULT '',
+            google_ads_account_id TEXT NOT NULL DEFAULT '',
+            google_mcc_id TEXT NOT NULL DEFAULT '',
+            google_developer_token TEXT NOT NULL DEFAULT '',
+            google_client_id TEXT NOT NULL DEFAULT '',
+            google_client_secret TEXT NOT NULL DEFAULT '',
+            google_refresh_token TEXT NOT NULL DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS rules (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                member_id INTEGER NOT NULL,
-                traffic_channel TEXT NOT NULL DEFAULT 'facebook',
-                rule_object TEXT NOT NULL DEFAULT 'campaign',
-                campaign_filter TEXT NOT NULL DEFAULT '',
-                schedule_minutes INTEGER NOT NULL DEFAULT 5,
-                notify_email TEXT NOT NULL DEFAULT '',
-                notify_webhook TEXT NOT NULL DEFAULT '',
-                active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (member_id) REFERENCES team_members(id) ON DELETE CASCADE
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            rule_object TEXT NOT NULL DEFAULT 'channel_campaign',
+            campaign_filter TEXT NOT NULL DEFAULT '',
+            schedule_minutes INTEGER NOT NULL DEFAULT 5,
+            notify_email TEXT NOT NULL DEFAULT '',
+            notify_webhook TEXT NOT NULL DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS rule_actions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rule_id INTEGER NOT NULL,
-                action TEXT NOT NULL DEFAULT 'pause',
-                scale_value REAL,
-                sort_order INTEGER NOT NULL DEFAULT 0,
-                FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE CASCADE
-            )
-        """)
+        # Many-to-many: which ad accounts a rule applies to
+        cur.execute("""CREATE TABLE IF NOT EXISTS rule_ad_accounts (
+            rule_id INTEGER NOT NULL,
+            ad_account_id INTEGER NOT NULL,
+            PRIMARY KEY (rule_id, ad_account_id),
+            FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE CASCADE,
+            FOREIGN KEY (ad_account_id) REFERENCES ad_accounts(id) ON DELETE CASCADE
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS action_conditions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                action_id INTEGER NOT NULL,
-                metric TEXT NOT NULL,
-                operator TEXT NOT NULL DEFAULT 'gte',
-                value REAL NOT NULL DEFAULT 0,
-                time_range TEXT NOT NULL DEFAULT 'today',
-                FOREIGN KEY (action_id) REFERENCES rule_actions(id) ON DELETE CASCADE
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS rule_actions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rule_id INTEGER NOT NULL,
+            action TEXT NOT NULL DEFAULT 'pause',
+            scale_value REAL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE CASCADE
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                level TEXT NOT NULL,
-                action TEXT NOT NULL,
-                object_id TEXT,
-                object_name TEXT,
-                object_type TEXT,
-                traffic_channel TEXT,
-                member_name TEXT,
-                cost REAL,
-                rule_name TEXT,
-                message TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS action_conditions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action_id INTEGER NOT NULL,
+            metric TEXT NOT NULL,
+            operator TEXT NOT NULL DEFAULT 'gte',
+            value REAL NOT NULL DEFAULT 0,
+            time_range TEXT NOT NULL DEFAULT 'today',
+            FOREIGN KEY (action_id) REFERENCES rule_actions(id) ON DELETE CASCADE
+        )""")
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS monitor_results (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                object_id TEXT NOT NULL,
-                object_name TEXT NOT NULL,
-                object_type TEXT NOT NULL DEFAULT 'campaign',
-                traffic_channel TEXT NOT NULL DEFAULT 'facebook',
-                member_name TEXT NOT NULL DEFAULT '',
-                platform_id TEXT NOT NULL DEFAULT '',
-                cost REAL NOT NULL DEFAULT 0,
-                revenue REAL NOT NULL DEFAULT 0,
-                roi REAL NOT NULL DEFAULT 0,
-                matched_rule TEXT,
-                matched_action TEXT,
-                pause_status TEXT NOT NULL,
-                monitored_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        cur.execute("""CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            level TEXT NOT NULL,
+            action TEXT NOT NULL,
+            object_id TEXT,
+            object_name TEXT,
+            ad_account_name TEXT,
+            platform TEXT,
+            owner TEXT,
+            cost REAL,
+            rule_name TEXT,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
+
+        cur.execute("""CREATE TABLE IF NOT EXISTS monitor_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            object_id TEXT NOT NULL,
+            object_name TEXT NOT NULL,
+            object_type TEXT NOT NULL DEFAULT 'campaign',
+            ad_account_name TEXT NOT NULL DEFAULT '',
+            platform TEXT NOT NULL DEFAULT '',
+            owner TEXT NOT NULL DEFAULT '',
+            platform_id TEXT NOT NULL DEFAULT '',
+            cost REAL NOT NULL DEFAULT 0,
+            revenue REAL NOT NULL DEFAULT 0,
+            roi REAL NOT NULL DEFAULT 0,
+            matched_rule TEXT,
+            matched_action TEXT,
+            pause_status TEXT NOT NULL,
+            monitored_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""")
 
         cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dry_run', 'true')")
         cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('redtrack_api_key', 'COLE_SUA_API_KEY_AQUI')")
 
 
-def get_setting(key: str, default: str = "") -> str:
+def get_setting(key, default=""):
     with db_cursor() as cur:
         cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
         row = cur.fetchone()
         return row["value"] if row else default
 
 
-def set_setting(key: str, value: str):
+def set_setting(key, value):
     with db_cursor(commit=True) as cur:
-        cur.execute("""
-            INSERT INTO settings (key, value) VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """, (key, value))
+        cur.execute("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))

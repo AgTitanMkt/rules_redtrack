@@ -1,9 +1,3 @@
-"""
-RedTrack Data Source — fetches campaign metrics from RedTrack API.
-Uses a single global API key (configured in Settings).
-Falls back to mock data if key is not set.
-"""
-
 import os
 import requests
 from typing import List
@@ -13,120 +7,101 @@ REDTRACK_BASE_URL = os.getenv("REDTRACK_BASE_URL", "https://api.redtrack.io")
 
 
 class RedTrackClient:
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key=""):
         self.base_url = REDTRACK_BASE_URL.rstrip("/")
         self.api_key = api_key
 
     def _headers(self):
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
+        return {"Authorization": f"Bearer {self.api_key}",
+                "Accept": "application/json", "Content-Type": "application/json"}
 
-    def fetch_report(self, member_id: int = 0) -> List[CampaignData]:
+    def fetch_report(self) -> List[CampaignData]:
         if not self.api_key:
             raise RuntimeError("No RedTrack API key")
-
         url = f"{self.base_url}/report"
-        payload = {
-            "group_by": ["campaign"],
-            "metrics": ["cost", "revenue", "profit", "conversions", "clicks", "impressions"],
-            "limit": 500,
-        }
+        payload = {"group_by": ["campaign"], "metrics": ["cost","revenue","profit","conversions","clicks","impressions"], "limit": 500}
         resp = requests.post(url, headers=self._headers(), json=payload, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-
         rows = data.get("rows", data) if isinstance(data, dict) else data
-        results: List[CampaignData] = []
-
+        results = []
         for row in rows:
-            obj_id = row.get("campaign_id") or row.get("id") or ""
-            obj_name = row.get("campaign_name") or row.get("name") or ""
-            cost = float(row.get("cost", 0) or row.get("spend", 0) or 0)
-            revenue = float(row.get("revenue", 0) or 0)
-            purchases = int(row.get("conversions", 0) or row.get("purchase", 0) or 0)
-            clicks = int(row.get("clicks", 0) or 0)
-            impressions = int(row.get("impressions", 0) or 0)
-            # Detect traffic channel from sub tokens or name patterns
-            channel = row.get("traffic_channel", "facebook")
-            # Platform-native ID (sub2 often holds the native campaign ID in RT)
-            platform_id = row.get("sub2", "") or row.get("platform_id", "") or str(obj_id)
-
-            profit = revenue - cost
-            roi = ((revenue - cost) / cost * 100) if cost > 0 else 0
-            roas = (revenue / cost * 100) if cost > 0 else 0
-            cpa = (cost / purchases) if purchases > 0 else 0
-            cpc = (cost / clicks) if clicks > 0 else 0
-            ctr = (clicks / impressions * 100) if impressions > 0 else 0
-            cr = (purchases / clicks * 100) if clicks > 0 else 0
-            epc = (revenue / clicks) if clicks > 0 else 0
-
-            if obj_id and obj_name:
+            oid = row.get("campaign_id") or row.get("id") or ""
+            name = row.get("campaign_name") or row.get("name") or ""
+            cost = float(row.get("cost",0) or row.get("spend",0) or 0)
+            rev = float(row.get("revenue",0) or 0)
+            purch = int(row.get("conversions",0) or 0)
+            clicks = int(row.get("clicks",0) or 0)
+            imps = int(row.get("impressions",0) or 0)
+            ch = row.get("traffic_channel","facebook")
+            pid = row.get("sub2","") or str(oid)
+            profit = rev - cost
+            roi = ((rev-cost)/cost*100) if cost>0 else 0
+            roas = (rev/cost*100) if cost>0 else 0
+            cpa = (cost/purch) if purch>0 else 0
+            cpc = (cost/clicks) if clicks>0 else 0
+            ctr = (clicks/imps*100) if imps>0 else 0
+            cr = (purch/clicks*100) if clicks>0 else 0
+            epc = (rev/clicks) if clicks>0 else 0
+            if oid and name:
                 results.append(CampaignData(
-                    object_id=str(obj_id), object_name=str(obj_name),
-                    traffic_channel=channel, object_type="campaign",
-                    member_id=member_id, platform_id=str(platform_id),
-                    cost=cost, revenue=revenue, profit=round(profit, 2),
-                    purchase=purchases, clicks=clicks, impressions=impressions,
-                    roi=round(roi, 2), roas=round(roas, 2),
-                    cpa=round(cpa, 2), cpc=round(cpc, 2),
-                    ctr=round(ctr, 2), cr=round(cr, 2), epc=round(epc, 2),
-                ))
-
+                    object_id=str(oid), object_name=name, ad_account_id=0,
+                    ad_account_name="", platform=ch, object_type="campaign",
+                    platform_id=pid, cost=cost, revenue=rev, profit=round(profit,2),
+                    purchase=purch, clicks=clicks, impressions=imps,
+                    roi=round(roi,2), roas=round(roas,2), cpa=round(cpa,2),
+                    cpc=round(cpc,2), ctr=round(ctr,2), cr=round(cr,2), epc=round(epc,2)))
         return results
 
 
-# ─── Mock Data ───────────────────────────────────────────────────
-
-def _calc(cost, rev, clicks, imps, purch):
-    roi = ((rev - cost) / cost * 100) if cost > 0 else 0
-    roas = (rev / cost * 100) if cost > 0 else 0
-    cpa = (cost / purch) if purch > 0 else 0
-    cpc = (cost / clicks) if clicks > 0 else 0
-    ctr = (clicks / imps * 100) if imps > 0 else 0
-    cr = (purch / clicks * 100) if clicks > 0 else 0
-    epc = (rev / clicks) if clicks > 0 else 0
+def _c(cost, rev, clicks, imps, purch):
+    roi = ((rev-cost)/cost*100) if cost>0 else 0
+    roas = (rev/cost*100) if cost>0 else 0
+    cpa = (cost/purch) if purch>0 else 0
+    cpc = (cost/clicks) if clicks>0 else 0
+    ctr = (clicks/imps*100) if imps>0 else 0
+    cr = (purch/clicks*100) if clicks>0 else 0
+    epc = (rev/clicks) if clicks>0 else 0
     return roi, roas, cpa, cpc, ctr, cr, epc
 
 
-def get_mock_campaigns(members: list = None) -> List[CampaignData]:
-    """Generate realistic mock data. If members provided, assigns to them."""
+def get_mock_campaigns(accounts: list = None) -> List[CampaignData]:
+    """Mock data: each ad account has campaigns under it, like RT Traffic Channels."""
+    if not accounts:
+        return []
+
+    acc_map = {a.name: a for a in accounts}
     raw = [
-        # member_idx, channel, obj_id, name, cost, rev, clicks, imps, purch, ic, atc, platform_id
-        (0, "facebook", "rt_101", "[Renato] ED ALL-IN-ONE V3", 142.50, 387.00, 3420, 48200, 11, 3, 1, "23851234567890"),
-        (0, "facebook", "rt_102", "[Renato] Brain Boost V2", 55.00, 12.00, 980, 15400, 0, 0, 0, "23851234567891"),
-        (0, "facebook", "rt_103", "[Renato] ED Conta 6 BM MS", 195.00, 110.00, 4200, 61000, 4, 1, 0, "23851234567892"),
-        (1, "facebook", "rt_201", "[Pedro] Geral - PAUSA ED", 89.30, 45.00, 1870, 31500, 2, 0, 0, "23851234567893"),
-        (1, "facebook", "rt_202", "[Pedro] NV ErosLift Test", 320.00, 890.00, 8700, 125000, 32, 8, 4, "23851234567894"),
-        (1, "facebook", "rt_203", "[Pedro] ALL-IN-ONE BW-04", 45.00, 0.00, 620, 9800, 0, 0, 0, "23851234567895"),
-        (2, "facebook", "rt_301", "[Vini] ED Cartpanda Legacy", 210.00, 620.00, 5100, 72000, 18, 5, 2, "23851234567896"),
-        (2, "facebook", "rt_302", "[Vini] ED VitalPRO Scale", 78.00, 195.00, 2100, 38000, 7, 2, 1, "23851234567897"),
-        (0, "google", "rt_401", "Google_US_ED_Search_Brand", 180.00, 540.00, 2200, 18000, 15, 4, 2, "customers/123/campaigns/456"),
-        (0, "google", "rt_402", "Google_US_Brain_Display", 95.00, 30.00, 4500, 120000, 1, 0, 0, "customers/123/campaigns/457"),
-        (1, "google", "rt_403", "Google_BR_Recovery_PMAX", 260.00, 710.00, 6800, 95000, 22, 6, 3, "customers/123/campaigns/458"),
-        (2, "google", "rt_404", "Google_US_ED_Shopping", 42.00, 0.00, 380, 5200, 0, 0, 0, "customers/123/campaigns/459"),
+        # (account_name, campaign, cost, rev, clicks, imps, purch, ic, atc, pid)
+        ("ED [FBR-RENATO]", "ED_US_Brain_V1", 142.50, 387.00, 3420, 48200, 11, 3, 1, "23851001"),
+        ("ED [FBR-RENATO]", "ED_US_AllInOne_V3", 195.00, 110.00, 4200, 61000, 4, 1, 0, "23851002"),
+        ("ED [FBR-RENATO]", "ED_US_BrainBoost_V2", 55.00, 12.00, 980, 15400, 0, 0, 0, "23851003"),
+        ("ED [FBR-RENATO] - BIDCAP", "ED_BIDCAP_Scale01", 89.30, 245.00, 2100, 31500, 7, 2, 1, "23851010"),
+        ("ED [FBR-RENATO] - BIDCAP", "ED_BIDCAP_Test02", 45.00, 0.00, 620, 9800, 0, 0, 0, "23851011"),
+        ("ED [FBR-PEDRO]", "ED_Pedro_Geral_V1", 89.30, 45.00, 1870, 31500, 2, 0, 0, "23851020"),
+        ("ED [FBR-PEDRO]", "ED_Pedro_ErosLift", 320.00, 890.00, 8700, 125000, 32, 8, 4, "23851021"),
+        ("ED [FBR-PEDRO]", "ED_Pedro_AllInOne_BW04", 45.00, 0.00, 620, 9800, 0, 0, 0, "23851022"),
+        ("ED [FBR-VINI]", "ED_Vini_Cartpanda", 210.00, 620.00, 5100, 72000, 18, 5, 2, "23851030"),
+        ("ED [FBR-VINI]", "ED_Vini_VitalPRO", 78.00, 195.00, 2100, 38000, 7, 2, 1, "23851031"),
+        ("ED [FBR-VINI]", "ED_Vini_NI10", 81.87, 0.00, 1200, 18000, 0, 0, 0, "23851032"),
+        ("GAADS - DIME - CONTA CESIO", "Google_ED_Search_Brand", 180.00, 540.00, 2200, 18000, 15, 4, 2, "cust/123/camp/456"),
+        ("GAADS - DIME - CONTA CESIO", "Google_ED_Display", 95.00, 30.00, 4500, 120000, 1, 0, 0, "cust/123/camp/457"),
+        ("GAADS - DIME - CONTA CESIO", "Google_ED_Shopping", 42.00, 0.00, 380, 5200, 0, 0, 0, "cust/123/camp/459"),
     ]
 
     results = []
-    for midx, ch, oid, name, cost, rev, clicks, imps, purch, ic, atc, pid in raw:
-        roi, roas, cpa, cpc, ctr, cr, epc = _calc(cost, rev, clicks, imps, purch)
-        member_id = 0
-        if members and midx < len(members):
-            member_id = members[midx].id
-
+    for acc_name, camp, cost, rev, clicks, imps, purch, ic, atc, pid in raw:
+        acc = acc_map.get(acc_name)
+        if not acc:
+            continue
+        roi, roas, cpa, cpc, ctr, cr, epc = _c(cost, rev, clicks, imps, purch)
         results.append(CampaignData(
-            object_id=oid, object_name=name,
-            traffic_channel=ch, object_type="campaign",
-            member_id=member_id, platform_id=pid,
-            cost=cost, revenue=rev, profit=round(rev - cost, 2),
+            object_id=f"rt_{len(results)+100}", object_name=camp,
+            ad_account_id=acc.id, ad_account_name=acc.name,
+            platform=acc.platform, object_type="campaign", platform_id=pid,
+            cost=cost, revenue=rev, profit=round(rev-cost,2),
             purchase=purch, clicks=clicks, impressions=imps,
-            roi=round(roi, 2), roas=round(roas, 2),
-            cpa=round(cpa, 2), cpc=round(cpc, 2),
-            ctr=round(ctr, 2), cr=round(cr, 2), epc=round(epc, 2),
-            initiate_checkout=ic, add_to_cart=atc,
-            frequency=round(imps / max(clicks, 1) * 0.3, 1),
-        ))
-
+            roi=round(roi,2), roas=round(roas,2), cpa=round(cpa,2),
+            cpc=round(cpc,2), ctr=round(ctr,2), cr=round(cr,2), epc=round(epc,2),
+            initiate_checkout=ic, add_to_cart=atc))
     return results

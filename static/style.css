@@ -208,3 +208,10 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:
 
 @media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.form-row{flex-wrap:wrap}.field-sm{flex:1 1 140px}}
 @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.stats-grid{grid-template-columns:1fr}.condition-row{flex-wrap:wrap}.flow-steps{flex-direction:column}.flow-arrow{transform:rotate(90deg)}}
+
+/* Account picker */
+.account-picker{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-sm);max-height:200px;overflow-y:auto}
+.acc-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--r-sm);font-size:12px;cursor:pointer;transition:all .15s}
+.acc-chip:hover{border-color:var(--border-focus)}
+.acc-chip input[type="checkbox"]{width:14px;height:14px;accent-color:var(--accent)}
+.tag-sm{font-size:9px;padding:1px 5px}

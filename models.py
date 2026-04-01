@@ -1,57 +1,42 @@
 from dataclasses import dataclass, field
 from typing import Optional, List
 
+# ─── Platform Types ──────────────────────────────────────────────
 
-# ─── Traffic Channels & Platform Config ──────────────────────────
-
-TRAFFIC_CHANNELS = {
-    "facebook": {
-        "label": "Facebook / Meta Ads",
-        "icon": "fb",
-        "rule_objects": [
-            {"value": "campaign", "label": "Campaign"},
-            {"value": "adset", "label": "Ad Set"},
-            {"value": "ad", "label": "Ad / Creative"},
-        ],
-        "token_fields": [
-            {"key": "fb_access_token", "label": "Access Token (Meta)", "placeholder": "EAAxxxxxx...", "type": "password"},
-            {"key": "fb_ad_account_id", "label": "Ad Account ID", "placeholder": "act_123456789", "type": "text"},
-        ],
-    },
-    "google": {
-        "label": "Google Ads",
-        "icon": "gg",
-        "rule_objects": [
-            {"value": "campaign", "label": "Campaign"},
-            {"value": "adgroup", "label": "Ad Group"},
-            {"value": "ad", "label": "Ad"},
-        ],
-        "token_fields": [
-            {"key": "google_developer_token", "label": "Developer Token", "placeholder": "xxxx-xxxx-xxxx", "type": "password"},
-            {"key": "google_client_id", "label": "OAuth Client ID", "placeholder": "123456.apps.googleusercontent.com", "type": "text"},
-            {"key": "google_client_secret", "label": "OAuth Client Secret", "placeholder": "GOCSPx-...", "type": "password"},
-            {"key": "google_refresh_token", "label": "Refresh Token", "placeholder": "1//0xxx...", "type": "password"},
-            {"key": "google_customer_id", "label": "Customer ID (MCC or account)", "placeholder": "123-456-7890", "type": "text"},
-        ],
-    },
+PLATFORM_TYPES = {
+    "facebook": {"label": "Facebook / Meta Ads", "icon": "fb"},
+    "google": {"label": "Google Ads", "icon": "gg"},
+    "taboola": {"label": "Taboola", "icon": "tb"},
+    "outbrain": {"label": "Outbrain", "icon": "ob"},
+    "newsbreak": {"label": "Newsbreak", "icon": "nb"},
+    "mgid": {"label": "MGID", "icon": "mg"},
+    "tiktok": {"label": "TikTok Ads", "icon": "tt"},
+    "other": {"label": "Other", "icon": "ot"},
 }
+
+RULE_OBJECTS = [
+    {"value": "channel_campaign", "label": "Channel Campaign (Traffic Channel)"},
+    {"value": "campaign", "label": "Campaign"},
+    {"value": "adset", "label": "Ad Set / Ad Group"},
+    {"value": "ad", "label": "Ad / Creative"},
+]
 
 METRICS = [
     {"value": "cost", "label": "Cost (Spend)", "type": "currency"},
     {"value": "revenue", "label": "Revenue", "type": "currency"},
     {"value": "profit", "label": "Profit", "type": "currency"},
-    {"value": "purchase", "label": "Purchases (Conversions)", "type": "number"},
+    {"value": "purchase", "label": "Purchases", "type": "number"},
     {"value": "clicks", "label": "Clicks", "type": "number"},
     {"value": "impressions", "label": "Impressions", "type": "number"},
     {"value": "roi", "label": "ROI %", "type": "percent"},
     {"value": "roas", "label": "ROAS %", "type": "percent"},
-    {"value": "cpa", "label": "CPA (Cost per Acquisition)", "type": "currency"},
-    {"value": "cpc", "label": "CPC (Cost per Click)", "type": "currency"},
+    {"value": "cpa", "label": "CPA", "type": "currency"},
+    {"value": "cpc", "label": "CPC", "type": "currency"},
     {"value": "ctr", "label": "CTR %", "type": "percent"},
-    {"value": "cr", "label": "CR % (Conversion Rate)", "type": "percent"},
-    {"value": "epc", "label": "EPC (Earnings per Click)", "type": "currency"},
-    {"value": "initiate_checkout", "label": "Initiate Checkout", "type": "number"},
-    {"value": "add_to_cart", "label": "Add to Cart", "type": "number"},
+    {"value": "cr", "label": "CR %", "type": "percent"},
+    {"value": "epc", "label": "EPC", "type": "currency"},
+    {"value": "initiate_checkout", "label": "InitiateCheckout", "type": "number"},
+    {"value": "add_to_cart", "label": "AddToCart", "type": "number"},
     {"value": "frequency", "label": "Frequency", "type": "number"},
 ]
 
@@ -67,8 +52,6 @@ ACTIONS = [
     {"value": "pause", "label": "Pause"},
     {"value": "pause_restart", "label": "Pause and Restart"},
     {"value": "notification", "label": "Notification Only"},
-    {"value": "scale_budget_up", "label": "Scale Budget Up"},
-    {"value": "scale_budget_down", "label": "Scale Budget Down"},
 ]
 
 TIME_RANGES = [
@@ -92,24 +75,42 @@ SCHEDULE_FREQUENCIES = [
 # ─── Data classes ────────────────────────────────────────────────
 
 @dataclass
-class TeamMember:
+class AdAccount:
+    """
+    One Traffic Channel in RedTrack = one Ad Account here.
+    e.g. "ED [FBR-RENATO]" is a Facebook account with Meta API connected.
+    """
     id: int
-    name: str
-    email: str
+    name: str                    # e.g. "ED [FBR-RENATO]" or "GAADS - DIME - CONTA CESIO"
+    platform: str                # facebook, google, taboola, etc.
+    owner: str                   # media buyer name: Renato, Pedro, Vini
+    # RedTrack campaign ID (the # column in RT)
+    rt_campaign_id: str = ""
+    # Facebook credentials
     fb_access_token: str = ""
-    fb_ad_account_id: str = ""
+    fb_ad_account_id: str = ""   # act_xxxxx
+    fb_pixel_id: str = ""
+    # Google credentials
+    google_ads_account_id: str = ""  # e.g. 820-096-1286
+    google_mcc_id: str = ""
     google_developer_token: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
     google_refresh_token: str = ""
-    google_customer_id: str = ""
+    # Status
+    active: bool = True
     created_at: str = ""
 
-    def has_fb_token(self) -> bool:
-        return bool(self.fb_access_token and self.fb_ad_account_id)
+    @property
+    def platform_label(self) -> str:
+        return PLATFORM_TYPES.get(self.platform, {}).get("label", self.platform)
 
-    def has_google_token(self) -> bool:
-        return bool(self.google_developer_token and self.google_refresh_token and self.google_customer_id)
+    def has_api(self) -> bool:
+        if self.platform == "facebook":
+            return bool(self.fb_access_token and self.fb_ad_account_id)
+        elif self.platform == "google":
+            return bool(self.google_ads_account_id and self.google_refresh_token)
+        return False
 
     def mask(self, val: str) -> str:
         if not val or len(val) < 8:
@@ -138,21 +139,17 @@ class RuleAction:
     scale_value: Optional[float] = None
 
     def describe_action(self) -> str:
-        label = next((a["label"] for a in ACTIONS if a["value"] == self.action), self.action)
-        if self.scale_value and "scale" in self.action:
-            return f"{label} {self.scale_value}%"
-        return label
+        return next((a["label"] for a in ACTIONS if a["value"] == self.action), self.action)
 
 
 @dataclass
 class Rule:
     id: int
     name: str
-    member_id: int
-    member_name: str
-    traffic_channel: str
-    rule_object: str
-    campaign_filter: str
+    ad_account_ids: List[int]    # which traffic channels this rule applies to
+    ad_account_names: List[str]  # denormalized for display
+    rule_object: str             # channel_campaign, campaign, adset, ad
+    campaign_filter: str         # text match on campaign name
     actions: List[RuleAction] = field(default_factory=list)
     schedule_minutes: int = 5
     notify_email: str = ""
@@ -161,26 +158,25 @@ class Rule:
     created_at: str = ""
 
     @property
-    def channel_label(self) -> str:
-        return TRAFFIC_CHANNELS.get(self.traffic_channel, {}).get("label", self.traffic_channel)
+    def object_label(self) -> str:
+        return next((r["label"] for r in RULE_OBJECTS if r["value"] == self.rule_object), self.rule_object)
 
     @property
-    def object_label(self) -> str:
-        ch = TRAFFIC_CHANNELS.get(self.traffic_channel, {})
-        for obj in ch.get("rule_objects", []):
-            if obj["value"] == self.rule_object:
-                return obj["label"]
-        return self.rule_object
+    def accounts_display(self) -> str:
+        if len(self.ad_account_names) <= 2:
+            return ", ".join(self.ad_account_names)
+        return f"{self.ad_account_names[0]} +{len(self.ad_account_names)-1} more"
 
 
 @dataclass
 class CampaignData:
     object_id: str
     object_name: str
-    traffic_channel: str
+    ad_account_id: int           # FK to ad_accounts
+    ad_account_name: str
+    platform: str
     object_type: str
-    member_id: int = 0
-    platform_id: str = ""   # native platform ID for pause/restart
+    platform_id: str = ""        # native platform ID for pause
     cost: float = 0.0
     revenue: float = 0.0
     profit: float = 0.0
@@ -207,8 +203,9 @@ class MonitorDecision:
     object_id: str
     object_name: str
     object_type: str
-    traffic_channel: str
-    member_name: str
+    ad_account_name: str
+    platform: str
+    owner: str
     platform_id: str
     cost: float
     revenue: float
