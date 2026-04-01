@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block subtitle %}Full audit trail of all rule executions and platform actions{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-head">
+    <h3>Execution Logs</h3>
+    <span class="badge badge-muted">{{ logs|length }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Action</th>
+          <th>Message</th>
+          <th>Member</th>
+          <th>Object</th>
+          <th>Channel</th>
+          <th>Cost</th>
+          <th>Rule</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td><span class="log-level level-{{ log['level']|lower }}">{{ log["level"] }}</span></td>
+          <td class="cell-mono">{{ log["action"] }}</td>
+          <td>{{ log["message"] }}</td>
+          <td><strong>{{ log["member_name"] or '—' }}</strong></td>
+          <td class="cell-name">{{ log["object_name"] or '—' }}</td>
+          <td>{% if log["traffic_channel"] %}<span class="channel-tag tag-{{ log['traffic_channel'] }}">{{ log["traffic_channel"]|upper }}</span>{% else %}—{% endif %}</td>
+          <td class="cell-num">{% if log["cost"] %}${{ '%.2f'|format(log["cost"]) }}{% else %}—{% endif %}</td>
+          <td>{{ log["rule_name"] or '—' }}</td>
+          <td class="cell-time">{{ log["created_at"] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty-row">No logs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
